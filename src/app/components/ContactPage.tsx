@@ -3,19 +3,18 @@ import { AppShell } from "./AppShell";
 import { useDark } from "../context";
 import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
 
-const ACCENT = "#8b1a2a";
+const ACCENT = "#BD3039";
 
 export function ContactPage() {
   const { dark } = useDark();
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [sent, setSent] = useState(false);
 
-  const bg = dark ? "#1a0808" : "#f7f0f0";
+  const bg = dark ? "#1a1919" : "#f0efef";
   const text = dark ? "#f0e0e0" : "#2a0f0f";
   const muted = dark ? "rgba(240,200,200,0.5)" : "rgba(100,50,50,0.5)";
-  const border = dark ? "rgba(240,180,180,0.1)" : "rgba(150,80,80,0.12)";
-  const card = dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.7)";
-  const inputBg = dark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.8)";
+  const card = dark ? "rgba(255,255,255,0.035)" : "rgba(255,255,255,0.45)";
+  const inputBg = dark ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.62)";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,12 +26,12 @@ export function ContactPage() {
   const inputStyle: React.CSSProperties = {
     width: "100%",
     background: inputBg,
-    border: `1px solid ${border}`,
+    border: "none",
     borderRadius: 4,
     padding: "10px 14px",
     color: text,
     fontSize: "0.88rem",
-    fontFamily: "'Vazirmatn', sans-serif",
+    fontFamily: "var(--app-font-family)",
     outline: "none",
     boxSizing: "border-box",
   };
@@ -49,10 +48,10 @@ export function ContactPage() {
       <div
         className="flex flex-col"
         dir="rtl"
-        style={{ fontFamily: "'Vazirmatn', sans-serif", background: bg, color: text, minHeight: "calc(100vh - 65px)" }}
+        style={{ fontFamily: "var(--app-font-family)", background: bg, color: text, minHeight: "calc(100vh - 65px)" }}
       >
         {/* Header */}
-        <div className="px-10 py-12" style={{ borderBottom: `1px solid ${border}` }}>
+        <div className="px-10 py-12">
           <div className="flex items-center gap-3 mb-3">
             <div style={{ width: 3, height: 36, background: ACCENT, borderRadius: 2 }} />
             <h1 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 700, margin: 0 }}>تماس با ما</h1>
@@ -67,7 +66,7 @@ export function ContactPage() {
           {/* Info panel */}
           <div
             className="flex flex-col gap-6 p-10"
-            style={{ width: "100%", maxWidth: 380, borderLeft: `1px solid ${border}` }}
+            style={{ width: "100%", maxWidth: 380 }}
           >
             <div className="flex items-center gap-3 mb-2">
               <div style={{ width: 3, height: 20, background: ACCENT, borderRadius: 2 }} />
@@ -91,7 +90,7 @@ export function ContactPage() {
             {/* Map placeholder */}
             <div
               className="rounded mt-2 flex items-center justify-center"
-              style={{ height: 140, background: card, border: `1px solid ${border}`, color: muted, fontSize: "0.8rem" }}
+              style={{ height: 140, background: card, border: "none", color: muted, fontSize: "0.8rem" }}
             >
               <div className="flex flex-col items-center gap-2">
                 <MapPin size={24} style={{ color: ACCENT }} />
@@ -110,7 +109,7 @@ export function ContactPage() {
             {sent && (
               <div
                 className="mb-5 px-4 py-3 rounded flex items-center gap-2"
-                style={{ background: "rgba(139,26,42,0.15)", border: `1px solid rgba(139,26,42,0.3)`, color: ACCENT, fontSize: "0.88rem" }}
+                style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)", border: "none", color: ACCENT, fontSize: "0.88rem" }}
               >
                 <Send size={15} />
                 پیام شما با موفقیت ارسال شد. به زودی با شما تماس می‌گیریم.
@@ -171,7 +170,7 @@ export function ContactPage() {
                   border: "none",
                   cursor: "pointer",
                   fontSize: "0.9rem",
-                  fontFamily: "'Vazirmatn', sans-serif",
+                  fontFamily: "var(--app-font-family)",
                   fontWeight: 500,
                   alignSelf: "flex-start",
                 }}

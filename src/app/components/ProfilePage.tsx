@@ -4,7 +4,7 @@ import { useDark, useAuth } from "../context";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LogOut, User, Phone, Mail, MessageCircle, Edit2 } from "lucide-react";
 
-const ACCENT = "#8b1a2a";
+const ACCENT = "#BD3039";
 
 const mockMessages = [
   { id: 1, subject: "استعلام قیمت پروژه ویلا", date: "۱۴۰۳/۰۳/۱۵", status: "پاسخ داده شد", preview: "با سلام، برای طراحی ویلا در شمال استعلام قیمت می‌خواستم..." },
@@ -17,7 +17,7 @@ export function ProfilePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const bg = dark ? "#1a0808" : "#f7f0f0";
+  const bg = dark ? "#1a1919" : "#f0efef";
   const text = dark ? "#f0e0e0" : "#2a0f0f";
   const muted = dark ? "rgba(240,200,200,0.5)" : "rgba(100,50,50,0.5)";
   const border = dark ? "rgba(240,180,180,0.1)" : "rgba(150,80,80,0.12)";
@@ -38,7 +38,7 @@ export function ProfilePage() {
       <div
         className="flex flex-col"
         dir="rtl"
-        style={{ fontFamily: "'Vazirmatn', sans-serif", background: bg, color: text, minHeight: "calc(100vh - 65px)" }}
+        style={{ fontFamily: "var(--app-font-family)", background: bg, color: text, minHeight: "calc(100vh - 65px)" }}
       >
         {/* Header */}
         <div
@@ -75,7 +75,7 @@ export function ProfilePage() {
                 color: text,
                 cursor: "pointer",
                 fontSize: "0.85rem",
-                fontFamily: "'Vazirmatn', sans-serif",
+                fontFamily: "var(--app-font-family)",
               }}
             >
               <Edit2 size={14} />
@@ -90,7 +90,7 @@ export function ProfilePage() {
                 color: ACCENT,
                 cursor: "pointer",
                 fontSize: "0.85rem",
-                fontFamily: "'Vazirmatn', sans-serif",
+                fontFamily: "var(--app-font-family)",
               }}
               onMouseEnter={e => (e.currentTarget.style.background = "rgba(139,26,42,0.25)")}
               onMouseLeave={e => (e.currentTarget.style.background = "rgba(139,26,42,0.15)")}

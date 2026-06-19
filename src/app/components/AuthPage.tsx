@@ -1,27 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { AppShell } from "./AppShell";
 import { useDark, useAuth } from "../context";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 
-const ACCENT = "#8b1a2a";
+import bgImage from "../../static/images/27.jpg"
+const BG_URL = bgImage;
+
+const ACCENT = "#BD3039";
 
 export function AuthPage() {
   const { dark } = useDark();
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    document.body.classList.add("auth-transparent-topbar");
+    return () => document.body.classList.remove("auth-transparent-topbar");
+  }, []);
+
   const [tab, setTab] = useState<"signin" | "register">("signin");
   const [showPass, setShowPass] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", phone: "" });
   const [error, setError] = useState("");
 
-  const bg = dark ? "#1a0808" : "#f7f0f0";
-  const text = dark ? "#f0e0e0" : "#2a0f0f";
-  const muted = dark ? "rgba(240,200,200,0.5)" : "rgba(100,50,50,0.5)";
-  const border = dark ? "rgba(240,180,180,0.1)" : "rgba(150,80,80,0.12)";
-  const card = dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.85)";
-  const inputBg = dark ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.9)";
+  const text = dark ? "#f8eeee" : "#271014";
+  const muted = dark ? "rgba(255,235,235,0.68)" : "rgba(40,16,20,0.58)";
+  const border = dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.42)";
+  const card = dark ? "rgba(0,0,0,0.42)" : "rgba(255,255,255,0.58)";
+  const inputBg = dark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.68)";
+  const pageBackground = dark
+    ? `linear-gradient(135deg, rgba(0,0,0,0.84), rgba(20,4,7,0.68), rgba(0,0,0,0.88)), url(${BG_URL})`
+    : `linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,245,247,0.58), rgba(139,26,42,0.22)), url(${BG_URL})`;
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -31,7 +41,7 @@ export function AuthPage() {
     padding: "10px 14px",
     color: text,
     fontSize: "0.88rem",
-    fontFamily: "'Vazirmatn', sans-serif",
+    fontFamily: "var(--app-font-family)",
     outline: "none",
     boxSizing: "border-box",
   };
@@ -52,15 +62,56 @@ export function AuthPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell transparent>
+      <style>{`
+        body.auth-transparent-topbar header,
+        body.auth-transparent-topbar .app-shell-header,
+        body.auth-transparent-topbar .meta-header,
+        body.auth-transparent-topbar [data-app-header],
+        body.auth-transparent-topbar [data-topbar] {
+          background: transparent !important;
+          background-color: transparent !important;
+          border-bottom: none !important;
+          box-shadow: none !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+      `}</style>
+      {/* Full-screen background like LandingPage — starts from the very top behind the transparent top bar */}
       <div
-        className="flex flex-col items-center justify-center flex-1 px-4 py-12"
+        className="fixed inset-0 w-full h-full"
+        style={{
+          zIndex: 0,
+          backgroundImage: pageBackground,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+
+      <div
+        className="relative flex flex-col items-center justify-center flex-1 px-4 py-12"
         dir="rtl"
-        style={{ fontFamily: "'Vazirmatn', sans-serif", background: bg, color: text, minHeight: "calc(100vh - 65px)" }}
+        style={{
+          zIndex: 1,
+          fontFamily: "var(--app-font-family)",
+          color: text,
+          minHeight: "100vh",
+          boxSizing: "border-box",
+        }}
       >
         <div
           className="w-full flex flex-col gap-6 rounded p-8"
-          style={{ maxWidth: 440, background: card, border: `1px solid ${border}` }}
+          style={{
+            maxWidth: 440,
+            background: card,
+            border: `1px solid ${border}`,
+            backdropFilter: "blur(22px) saturate(145%)",
+            WebkitBackdropFilter: "blur(22px) saturate(145%)",
+            boxShadow: dark
+              ? "0 28px 80px rgba(0,0,0,0.45)"
+              : "0 28px 80px rgba(45,15,20,0.16)",
+          }}
         >
           {/* Logo / title */}
           <div className="flex flex-col items-center gap-2 mb-2">
@@ -95,7 +146,7 @@ export function AuthPage() {
                   border: "none",
                   cursor: "pointer",
                   fontSize: "0.85rem",
-                  fontFamily: "'Vazirmatn', sans-serif",
+                  fontFamily: "var(--app-font-family)",
                   fontWeight: tab === t.id ? 600 : 400,
                 }}
               >
@@ -156,7 +207,7 @@ export function AuthPage() {
                   border: "none",
                   cursor: "pointer",
                   fontSize: "0.92rem",
-                  fontFamily: "'Vazirmatn', sans-serif",
+                  fontFamily: "var(--app-font-family)",
                   fontWeight: 600,
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#a02030")}
@@ -222,7 +273,7 @@ export function AuthPage() {
                   border: "none",
                   cursor: "pointer",
                   fontSize: "0.92rem",
-                  fontFamily: "'Vazirmatn', sans-serif",
+                  fontFamily: "var(--app-font-family)",
                   fontWeight: 600,
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#a02030")}
