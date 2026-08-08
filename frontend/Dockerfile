@@ -12,7 +12,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM deps AS build
 COPY . .
 ARG VITE_API_URL=/api/v1
-ARG VITE_ADMIN_URL=/admin/
+ARG VITE_ADMIN_URL=/api/admin/
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_ADMIN_URL=$VITE_ADMIN_URL
 RUN npm run build

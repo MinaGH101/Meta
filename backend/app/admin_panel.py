@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+import jinja2
 from pathlib import Path
 import re
 from typing import Any
@@ -42,6 +43,10 @@ from .security import hash_password, verify_password
 from .storage import remove_media_file, save_image
 
 
+ADMIN_BASE_URL = "/admin"
+ADMIN_PUBLIC_URL = f"{settings.admin_public_prefix.rstrip('/')}{ADMIN_BASE_URL}"
+
+
 class AdminAuthentication(AuthenticationBackend):
     def __init__(self, secret_key: str) -> None:
         super().__init__(secret_key)
@@ -72,21 +77,56 @@ class AdminAuthentication(AuthenticationBackend):
         request.session.clear()
         return True
 
-    async def authenticate(self, request: Request) -> bool:
+    async def authenticate(self, request: Request) -> bool | RedirectResponse:
         raw_user_id = request.session.get("admin_user_id")
         if not raw_user_id:
-            return False
+            return RedirectResponse(f"{ADMIN_PUBLIC_URL}/login", status_code=302)
         try:
             user_id = UUID(str(raw_user_id))
         except (TypeError, ValueError):
             request.session.clear()
-            return False
+            return RedirectResponse(f"{ADMIN_PUBLIC_URL}/login", status_code=302)
         with SessionLocal() as db:
             user = db.get(User, user_id)
             if not user or not user.is_active or user.role != "admin":
                 request.session.clear()
-                return False
+                return RedirectResponse(f"{ADMIN_PUBLIC_URL}/login", status_code=302)
         return True
+
+
+class MetaAdmin(Admin):
+    async def login(self, request: Request):
+        assert self.authentication_backend is not None
+        context: dict[str, str] = {}
+        if request.method == "GET":
+            return await self.templates.TemplateResponse(request, "sqladmin/login.html")
+        ok = await self.authentication_backend.login(request)
+        if not ok:
+            context["error"] = "Invalid credentials."
+            return await self.templates.TemplateResponse(
+                request, "sqladmin/login.html", context, status_code=400
+            )
+        return RedirectResponse(f"{ADMIN_PUBLIC_URL}/management", status_code=302)
+
+    async def logout(self, request: Request):
+        assert self.authentication_backend is not None
+        await self.authentication_backend.logout(request)
+        return RedirectResponse(f"{ADMIN_PUBLIC_URL}/login", status_code=302)
+
+
+def configure_admin_template_urls(admin: Admin) -> None:
+    @jinja2.pass_context
+    def public_url_for(context: dict, route_name: str, **path_params: Any) -> str:
+        request = context["request"]
+        url = request.url_for(route_name, **path_params)
+        path = url.path
+        if route_name.startswith("admin:") and settings.admin_public_prefix:
+            prefix = settings.admin_public_prefix.rstrip("/")
+            if not path.startswith(f"{prefix}/"):
+                path = f"{prefix}{path}"
+        return path
+
+    admin.templates.env.globals["url_for"] = public_url_for
 
 
 PROJECT_CONFIG: dict[str, dict[str, Any]] = {
@@ -171,7 +211,7 @@ def notice_url(*, area: str, project_type: str = "tarahi", success: str | None =
         params["error"] = error
     if edit:
         params["edit"] = str(edit)
-    return RedirectResponse(f"/admin/management?{urlencode(params)}", status_code=303)
+    return RedirectResponse(f"{ADMIN_PUBLIC_URL}/management?{urlencode(params)}", status_code=303)
 
 
 def error_text(exc: Exception) -> str:
@@ -393,13 +433,13 @@ button,.button{display:inline-flex;align-items:center;justify-content:center;min
 
 def layout(title: str, body: str, area: str, project_type: str = "tarahi") -> HTMLResponse:
     top_links = [
-        ("projects", "پروژه‌ها", f"/admin/management?area=projects&type={project_type}"),
-        ("users", "کاربران", "/admin/management?area=users"),
-        ("messages", "پیام‌ها", "/admin/management?area=messages&message_view=received"),
+        ("projects", "پروژه‌ها", f"{ADMIN_PUBLIC_URL}/management?area=projects&type={project_type}"),
+        ("users", "کاربران", f"{ADMIN_PUBLIC_URL}/management?area=users"),
+        ("messages", "پیام‌ها", f"{ADMIN_PUBLIC_URL}/management?area=messages&message_view=received"),
     ]
     nav = "".join(f'<a class="{"active" if key == area else ""}" href="{url}">{label}</a>' for key, label, url in top_links)
     script = """<script>(function(){const root=document.documentElement;const saved=localStorage.getItem('meta-admin-theme')||'dark';root.dataset.theme=saved;window.toggleAdminTheme=function(){const next=root.dataset.theme==='dark'?'light':'dark';root.dataset.theme=next;localStorage.setItem('meta-admin-theme',next)};window.previewAdminImages=function(input,targetId,single){const target=document.getElementById(targetId);if(!target)return;target.innerHTML='';Array.from(input.files||[]).slice(0,single?1:50).forEach(file=>{const image=document.createElement('img');image.src=URL.createObjectURL(file);image.alt=file.name;target.appendChild(image)})}})();</script>"""
-    return HTMLResponse(f"""<!doctype html><html lang="fa" dir="rtl" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{h(title)}</title><style>{ADMIN_CSS}</style>{script}</head><body><header class="top"><div class="brand-wrap"><span class="brand-mark"></span><div class="brand">پنل مدیریت متا</div></div><nav class="topnav">{nav}<a href="/docs">مستندات API</a></nav><div class="actions"><button type="button" class="icon-button" onclick="toggleAdminTheme()">تغییر پوسته</button><a class="button secondary" href="/admin/logout">خروج</a></div></header><main class="wrap">{body}</main></body></html>""")
+    return HTMLResponse(f"""<!doctype html><html lang="fa" dir="rtl" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{h(title)}</title><style>{ADMIN_CSS}</style>{script}</head><body><header class="top"><div class="brand-wrap"><span class="brand-mark"></span><div class="brand">پنل مدیریت متا</div></div><nav class="topnav">{nav}<a href="/docs">مستندات API</a></nav><div class="actions"><button type="button" class="icon-button" onclick="toggleAdminTheme()">تغییر پوسته</button><a class="button secondary" href="{ADMIN_PUBLIC_URL}/logout">خروج</a></div></header><main class="wrap">{body}</main></body></html>""")
 
 
 def notices(request: Request) -> str:
@@ -410,7 +450,7 @@ def notices(request: Request) -> str:
 
 def project_tabs(active: str) -> str:
     return '<nav class="tabs">' + "".join(
-        f'<a class="{"active" if item == active else ""}" href="/admin/management?area=projects&type={item}">{label}</a>'
+        f'<a class="{"active" if item == active else ""}" href="{ADMIN_PUBLIC_URL}/management?area=projects&type={item}">{label}</a>'
         for item, label in (("tarahi", "طراحی"), ("nezarat", "نظارت"), ("ejra", "اجرا"))
     ) + "</nav>"
 
@@ -529,7 +569,7 @@ def project_form(section: str, project: Any | None, relations: list[Any]) -> str
         image_fields = """<div class="form-section"><div class="form-section-title">تصاویر پروژه</div><div class="form-grid"><label class="span2">آپلود تصاویر جدید<input type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple><span class="muted">چند تصویر را هم‌زمان انتخاب کنید.</span></label><label>متن جایگزین<input name="alt_text"></label><label class="span2">نام تصاویر موجود<textarea name="existing_image_names" placeholder="1.jpg&#10;2.jpg"></textarea><span class="muted">فقط نام فایل ذخیره می‌شود و فایل باید در مسیر تصاویر فرانت وجود داشته باشد.</span></label><label>عنوان تصویر<input name="caption"></label></div></div>"""
     images_panel = project_image_cards(section, project) if project and section != "tarahi" else ""
     sections_panel = tarahi_sections_panel(project) if section == "tarahi" else ""
-    return f"""<div class="modal-shell"><section class="modal-card"><div class="modal-head"><h2 style="margin:0">{title}</h2><a class="button secondary" href="/admin/management?area=projects&type={section}">بستن</a></div><div class="modal-body"><form method="post" enctype="multipart/form-data" autocomplete="off"><input type="hidden" name="project_type" value="{section}">{f'<input type="hidden" name="project_id" value="{project.id}">' if project else ''}<div class="form-section"><div class="form-section-title">اطلاعات اصلی</div><div class="form-grid">{relation_html}<label>نام پروژه<input name="name" value="{h(project.name if project else '')}" required></label><label>شناسه URL<input name="slug" value="{h(project.slug if project else '')}" placeholder="خودکار از نام پروژه"></label><label>متراژ<input name="metraj" value="{h(project.metraj if project else '')}"></label><label>موقعیت<input name="location" value="{h(project.location if project else '')}"></label><label>وضعیت<select name="state"><option value="open" {selected(project.state if project else 'open','open')}>باز / در حال انجام</option><option value="closed" {selected(project.state if project else 'open','closed')}>بسته / پایان‌یافته</option></select></label><label>سال<input name="year" value="{h(project.year if project else '')}"></label>{extra}<label>ترتیب نمایش<input type="number" name="display_order" value="{h(project.display_order if project else 0)}"></label></div></div><div class="form-section"><div class="form-section-title">توضیحات</div><label>شرح پروژه<textarea name="description">{h(project.description if project else '')}</textarea></label></div>{image_fields}<div class="actions"><button type="submit" name="action" value="save_project">{'ذخیره تغییرات' if project else 'ایجاد پروژه'}</button><a class="button secondary" href="/admin/management?area=projects&type={section}">انصراف</a></div></form>{sections_panel}{images_panel}</div></section></div>"""
+    return f"""<div class="modal-shell"><section class="modal-card"><div class="modal-head"><h2 style="margin:0">{title}</h2><a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=projects&type={section}">بستن</a></div><div class="modal-body"><form method="post" enctype="multipart/form-data" autocomplete="off"><input type="hidden" name="project_type" value="{section}">{f'<input type="hidden" name="project_id" value="{project.id}">' if project else ''}<div class="form-section"><div class="form-section-title">اطلاعات اصلی</div><div class="form-grid">{relation_html}<label>نام پروژه<input name="name" value="{h(project.name if project else '')}" required></label><label>شناسه URL<input name="slug" value="{h(project.slug if project else '')}" placeholder="خودکار از نام پروژه"></label><label>متراژ<input name="metraj" value="{h(project.metraj if project else '')}"></label><label>موقعیت<input name="location" value="{h(project.location if project else '')}"></label><label>وضعیت<select name="state"><option value="open" {selected(project.state if project else 'open','open')}>باز / در حال انجام</option><option value="closed" {selected(project.state if project else 'open','closed')}>بسته / پایان‌یافته</option></select></label><label>سال<input name="year" value="{h(project.year if project else '')}"></label>{extra}<label>ترتیب نمایش<input type="number" name="display_order" value="{h(project.display_order if project else 0)}"></label></div></div><div class="form-section"><div class="form-section-title">توضیحات</div><label>شرح پروژه<textarea name="description">{h(project.description if project else '')}</textarea></label></div>{image_fields}<div class="actions"><button type="submit" name="action" value="save_project">{'ذخیره تغییرات' if project else 'ایجاد پروژه'}</button><a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=projects&type={section}">انصراف</a></div></form>{sections_panel}{images_panel}</div></section></div>"""
 
 
 def project_image_cards(section: str, project: Any | None) -> str:
@@ -567,7 +607,7 @@ def project_list(section: str, projects: list[Any]) -> str:
         relation = f"{len(project.sections)} بخش طراحی" if section == "tarahi" else project.region.name if section == "nezarat" else "پروژه اجرا"
         cover_html = f'<img class="cover" src="{h(admin_image_src(cover.file_url))}" alt="{h(project.name)}">' if cover else '<div class="cover placeholder">بدون تصویر</div>'
         state_label = "باز" if project.state == "open" else "بسته"
-        rows.append(f"""<article class="project">{cover_html}<div><h3>{h(project.name)}</h3><div class="meta">{h(relation)} · {h(project.location or '—')} · {h(project.metraj or '—')} · {state_label} · {len(project.images)} تصویر</div><div class="muted">{h((project.description or '')[:150])}</div></div><div class="actions"><a class="button secondary" href="/admin/management?area=projects&type={section}&edit={project.id}">ویرایش</a><form method="post" onsubmit="return confirm('پروژه و تصاویر آن حذف شود؟')"><input type="hidden" name="action" value="delete_project"><input type="hidden" name="project_type" value="{section}"><input type="hidden" name="project_id" value="{project.id}"><button class="danger">حذف</button></form></div></article>""")
+        rows.append(f"""<article class="project">{cover_html}<div><h3>{h(project.name)}</h3><div class="meta">{h(relation)} · {h(project.location or '—')} · {h(project.metraj or '—')} · {state_label} · {len(project.images)} تصویر</div><div class="muted">{h((project.description or '')[:150])}</div></div><div class="actions"><a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=projects&type={section}&edit={project.id}">ویرایش</a><form method="post" onsubmit="return confirm('پروژه و تصاویر آن حذف شود؟')"><input type="hidden" name="action" value="delete_project"><input type="hidden" name="project_type" value="{section}"><input type="hidden" name="project_id" value="{project.id}"><button class="danger">حذف</button></form></div></article>""")
     return "".join(rows)
 
 
@@ -605,7 +645,7 @@ def render_projects(request: Request, section: str) -> HTMLResponse:
             .order_by(NezaratTableWorkbook.updated_at.desc())
         ) if section == "nezarat" else None
         show_form = request.query_params.get("new") == "1" or edit_project is not None
-        header = f'<div class="page-head"><div><h1>مدیریت پروژه‌های {config["label"]}</h1><div class="muted">{len(projects)} پروژه ثبت شده</div></div><a class="button" href="/admin/management?area=projects&type={section}&new=1">پروژه جدید</a></div>'
+        header = f'<div class="page-head"><div><h1>مدیریت پروژه‌های {config["label"]}</h1><div class="muted">{len(projects)} پروژه ثبت شده</div></div><a class="button" href="{ADMIN_PUBLIC_URL}/management?area=projects&type={section}&new=1">پروژه جدید</a></div>'
         listing = f'<section class="card"><h2>فهرست پروژه‌ها</h2>{project_list(section, projects)}</section>'
         side = f'{relation_panel(section, relations) if config["relation_model"] else ""}{nezarat_table_panel(workbook) if section == "nezarat" else ""}'
         content = f'<div class="layout"><div>{listing}</div><aside>{side}</aside></div>' if side else listing
@@ -620,8 +660,8 @@ def render_users(request: Request) -> HTMLResponse:
             try: edit_user = db.get(User, UUID(request.query_params["edit"]))
             except ValueError: pass
         users = list(db.scalars(select(User).order_by(User.created_at.desc())))
-        rows = "".join(f"""<tr><td>{h(u.full_name)}</td><td>{h(u.email)}</td><td>{h(u.phone)}</td><td>{'مدیر' if u.role == 'admin' else 'کاربر'}</td><td>{'فعال' if u.is_active else 'غیرفعال'}</td><td><div class="actions"><a class="button secondary" href="/admin/management?area=users&edit={u.id}">ویرایش</a><form method="post" onsubmit="return confirm('این کاربر حذف شود؟')"><input type="hidden" name="action" value="delete_user"><input type="hidden" name="user_id" value="{u.id}"><button class="danger">حذف</button></form></div></td></tr>""" for u in users) or '<tr><td colspan="6">کاربری ثبت نشده است.</td></tr>'
-        form = f"""<details class="compact" {'open' if edit_user else ''}><summary>{'ویرایش کاربر' if edit_user else 'ایجاد کاربر جدید'}</summary><div class="details-body"><form method="post" style="margin-top:13px"><input type="hidden" name="action" value="save_user">{f'<input type="hidden" name="user_id" value="{edit_user.id}">' if edit_user else ''}<div class="form-grid"><label>نام کامل<input name="full_name" value="{h(edit_user.full_name if edit_user else '')}" required></label><label>ایمیل<input type="email" name="email" value="{h(edit_user.email if edit_user else '')}" required></label><label>تلفن<input name="phone" value="{h(edit_user.phone if edit_user else '')}"></label><label>رمز عبور<input type="password" name="password" {'placeholder="برای حفظ رمز خالی بگذارید"' if edit_user else 'required'}></label><label>نقش<select name="role"><option value="user" {selected(edit_user.role if edit_user else 'user','user')}>کاربر</option><option value="admin" {selected(edit_user.role if edit_user else 'user','admin')}>مدیر</option></select></label><label class="inline-check"><input type="checkbox" name="is_active" {checked(edit_user.is_active if edit_user else True)}> فعال</label></div><div class="actions" style="margin-top:13px"><button>{'ذخیره' if edit_user else 'ایجاد کاربر'}</button>{'<a class="button secondary" href="/admin/management?area=users">لغو</a>' if edit_user else ''}</div></form></div></details>"""
+        rows = "".join(f"""<tr><td>{h(u.full_name)}</td><td>{h(u.email)}</td><td>{h(u.phone)}</td><td>{'مدیر' if u.role == 'admin' else 'کاربر'}</td><td>{'فعال' if u.is_active else 'غیرفعال'}</td><td><div class="actions"><a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=users&edit={u.id}">ویرایش</a><form method="post" onsubmit="return confirm('این کاربر حذف شود؟')"><input type="hidden" name="action" value="delete_user"><input type="hidden" name="user_id" value="{u.id}"><button class="danger">حذف</button></form></div></td></tr>""" for u in users) or '<tr><td colspan="6">کاربری ثبت نشده است.</td></tr>'
+        form = f"""<details class="compact" {'open' if edit_user else ''}><summary>{'ویرایش کاربر' if edit_user else 'ایجاد کاربر جدید'}</summary><div class="details-body"><form method="post" style="margin-top:13px"><input type="hidden" name="action" value="save_user">{f'<input type="hidden" name="user_id" value="{edit_user.id}">' if edit_user else ''}<div class="form-grid"><label>نام کامل<input name="full_name" value="{h(edit_user.full_name if edit_user else '')}" required></label><label>ایمیل<input type="email" name="email" value="{h(edit_user.email if edit_user else '')}" required></label><label>تلفن<input name="phone" value="{h(edit_user.phone if edit_user else '')}"></label><label>رمز عبور<input type="password" name="password" {'placeholder="برای حفظ رمز خالی بگذارید"' if edit_user else 'required'}></label><label>نقش<select name="role"><option value="user" {selected(edit_user.role if edit_user else 'user','user')}>کاربر</option><option value="admin" {selected(edit_user.role if edit_user else 'user','admin')}>مدیر</option></select></label><label class="inline-check"><input type="checkbox" name="is_active" {checked(edit_user.is_active if edit_user else True)}> فعال</label></div><div class="actions" style="margin-top:13px"><button>{'ذخیره' if edit_user else 'ایجاد کاربر'}</button>{f'<a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=users">لغو</a>' if edit_user else ''}</div></form></div></details>"""
         body = f"""{notices(request)}<div class="page-head"><div><h1>مدیریت کاربران</h1><div class="muted">{len(users)} کاربر</div></div></div>{form}<section class="card"><div class="table-wrap"><table><thead><tr><th>نام</th><th>ایمیل</th><th>تلفن</th><th>نقش</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>{rows}</tbody></table></div></section>"""
         return layout("کاربران", body, "users")
 
@@ -631,7 +671,7 @@ def render_messages(request: Request, view: str) -> HTMLResponse:
         users = list(db.scalars(select(User).where(User.is_active.is_(True)).order_by(User.full_name)))
         received = list(db.scalars(select(ContactMessage).order_by(ContactMessage.created_at.desc())))
         sent = list(db.scalars(select(OutboundMessage).options(selectinload(OutboundMessage.created_by), selectinload(OutboundMessage.recipients).selectinload(OutboundMessageRecipient.user)).order_by(OutboundMessage.created_at.desc())).unique())
-        tabs = '<nav class="tabs">' + ''.join(f'<a class="{"active" if view == key else ""}" href="/admin/management?area=messages&message_view={key}">{label}</a>' for key,label in (("received","دریافتی"),
+        tabs = '<nav class="tabs">' + ''.join(f'<a class="{"active" if view == key else ""}" href="{ADMIN_PUBLIC_URL}/management?area=messages&message_view={key}">{label}</a>' for key,label in (("received","دریافتی"),
         # ("sent","ارسالی"),("compose","ارسال پیام")
         )) + '</nav>'
         if view == "compose":
@@ -918,13 +958,14 @@ class ManagementAdmin(BaseView):
 
 
 def setup_admin(app: FastAPI) -> Admin:
-    admin = Admin(
+    admin = MetaAdmin(
         app,
         engine,
         title="Meta Holding Management",
-        base_url="/admin",
+        base_url=ADMIN_BASE_URL,
         authentication_backend=AdminAuthentication(settings.secret_key),
         debug=settings.environment != "production",
     )
+    configure_admin_template_urls(admin)
     admin.add_view(ManagementAdmin)
     return admin

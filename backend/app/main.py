@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from .admin_panel import setup_admin
+from .admin_panel import ADMIN_PUBLIC_URL, setup_admin
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .routers import admin, auth, public
@@ -45,9 +45,14 @@ app.include_router(public.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 
 
+@app.get("/admin", include_in_schema=False)
+def admin_entry():
+    return RedirectResponse(f"{ADMIN_PUBLIC_URL}/", status_code=307)
+
+
 @app.get("/admin/", include_in_schema=False)
 def admin_home():
-    return RedirectResponse("/admin/management", status_code=307)
+    return RedirectResponse(f"{ADMIN_PUBLIC_URL}/management", status_code=307)
 
 
 setup_admin(app)
@@ -55,7 +60,7 @@ setup_admin(app)
 
 @app.get("/", include_in_schema=False)
 def root():
-    return {"name": settings.app_name, "docs": "/docs", "admin": "/admin/", "api": settings.api_prefix}
+    return {"name": settings.app_name, "docs": "/docs", "admin": f"{ADMIN_PUBLIC_URL}/", "api": settings.api_prefix}
 
 
 @app.get("/health/live", tags=["Health"])

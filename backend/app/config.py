@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_name: str = "Meta Holding API"
     environment: str = "development"
     api_prefix: str = "/api/v1"
+    admin_public_prefix: str = ""
     database_url: str = "postgresql+psycopg://meta:meta@postgres:5432/meta"
     secret_key: str = Field(default="change-this-in-production-minimum-32-characters")
     access_token_minutes: int = 30
