@@ -1,0 +1,22 @@
+:root {
+  --app-font-family: "Shabnam", sans-serif;
+}
+
+@font-face {
+  font-family: "Shabnam";
+  src:
+    local("Shabnam"),
+    url("/fonts/Shabnam.woff2") format("woff2"),
+    url("https://cdnjs.cloudflare.com/ajax/libs/shabnam-font/5.0.1/Shabnam.woff2") format("woff2");
+  font-style: normal;
+  font-display: swap;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--app-font-family);
+}

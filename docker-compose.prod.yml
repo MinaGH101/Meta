@@ -1,0 +1,116 @@
+name: meta-holding-prod
+
+x-backend-environment: &backend-environment
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+  ENVIRONMENT: production
+  CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env}
+  MEDIA_ROOT: /app/media
+  ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+  ADMIN_NAME: ${ADMIN_NAME:-مدیر متا}
+  SEED_INITIAL_DATA: ${SEED_INITIAL_DATA:-true}
+  FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?Set POSTGRES_USER in .env} -d ${POSTGRES_DB:?Set POSTGRES_DB in .env}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      target: base
+    command: alembic upgrade head
+    environment:
+      <<: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: base
+    command: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers ${WEB_CONCURRENCY:-3} --bind 0.0.0.0:8000 --timeout 60 --access-logfile - --error-logfile -
+    environment:
+      <<: *backend-environment
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_API_URL: /api/v1
+        VITE_ADMIN_URL: /admin/
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      PGUSER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    command: >-
+      sh -c 'mkdir -p /backups;
+      while true; do
+        stamp=$$(date -u +%Y%m%dT%H%M%SZ);
+        pg_dump --format=custom --file=/backups/meta_$${stamp}.dump;
+        tar -czf /backups/media_$${stamp}.tar.gz -C /media .;
+        find /backups -type f \( -name "*.dump" -o -name "media_*.tar.gz" \) -mtime +$${BACKUP_RETENTION_DAYS} -delete;
+        sleep $${BACKUP_INTERVAL_SECONDS};
+      done'
+    volumes:
+      - database_backups:/backups
+      - media_data:/media:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  media_data:
+  database_backups:
