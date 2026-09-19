@@ -6,10 +6,24 @@ from .models import NezaratRegion, PageContent, User
 from .security import hash_password
 
 def seed_database(db: Session) -> None:
-    admin = db.scalar(select(User).where(User.email == settings.admin_email.lower()))
+    admin_email = settings.admin_email.strip().lower() or None
+    admin_phone = settings.admin_phone.strip() or None
+    admin = db.scalar(select(User).where(User.email == admin_email)) if admin_email else None
+    if not admin and admin_phone:
+        admin = db.scalar(select(User).where(User.phone == admin_phone))
     if not admin:
-        db.add(User(full_name=settings.admin_name, email=settings.admin_email.lower(), password_hash=hash_password(settings.admin_password), role="admin", is_active=True))
+        admin = User(
+            full_name=settings.admin_name,
+            email=admin_email,
+            phone=admin_phone,
+            password_hash=hash_password(settings.admin_password),
+            role="admin",
+            is_active=True,
+        )
+        db.add(admin)
         db.flush()
+    elif admin_phone and not admin.phone:
+        admin.phone = admin_phone
 
     if settings.seed_initial_data:
         region_items = [(str(number), f"منطقه {number}") for number in range(1, 23)] + [("lavasan", "لواسان"), ("karaj", "کرج")]

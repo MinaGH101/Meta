@@ -14,9 +14,9 @@ docker compose up --build
 Open:
 
 - Website: `http://localhost:5173`
-- Admin login: `http://localhost:8000/admin/`
-- API documentation: `http://localhost:8000/docs`
-- Readiness check: `http://localhost:8000/health/ready`
+- Admin login: `https://metaholding.ir/api/admin/`
+- API documentation: `https://metaholding.ir/api/docs`
+- Readiness check: `https://metaholding.ir/api/health/ready`
 
 Default local administrator:
 

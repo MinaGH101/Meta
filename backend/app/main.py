@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +39,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+PUBLIC_PREFIX = settings.public_prefix.rstrip("/") or "/api"
+
+
+@app.middleware("http")
+async def normalize_proxy_paths(request: Request, call_next):
+    """Make /api the single public prefix without duplicating it internally.
+
+    The Debian/Nginx proxy may either strip /api before forwarding or preserve
+    it. FastAPI accepts both forms:
+      public /api/          -> internal /
+      public /api/v1/...    -> internal /v1/...
+      public /api/admin/... -> internal /admin/...
+      public /api/docs      -> internal /docs
+
+    Repeated legacy prefixes such as /api/api/v1 are collapsed as a temporary
+    compatibility guard for cached/older frontend bundles.
+    """
+    original_path = request.scope.get("path", "")
+    path = original_path
+    doubled_prefix = f"{PUBLIC_PREFIX}{PUBLIC_PREFIX}"
+
+    while path == doubled_prefix or path.startswith(f"{doubled_prefix}/"):
+        path = path[len(PUBLIC_PREFIX):]
+
+    if path == PUBLIC_PREFIX or path == f"{PUBLIC_PREFIX}/":
+        path = "/"
+    elif path.startswith(f"{PUBLIC_PREFIX}/"):
+        path = path[len(PUBLIC_PREFIX):] or "/"
+
+    if path != original_path:
+        request.scope["path"] = path
+        request.scope["raw_path"] = path.encode("utf-8")
+
+    return await call_next(request)
 app.mount(settings.media_url, StaticFiles(directory=settings.media_root), name="media")
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(public.router, prefix=settings.api_prefix)
@@ -60,7 +96,7 @@ setup_admin(app)
 
 @app.get("/", include_in_schema=False)
 def root():
-    return {"name": settings.app_name, "docs": "/docs", "admin": f"{ADMIN_PUBLIC_URL}/", "api": settings.api_prefix}
+    return {"name": settings.app_name, "docs": f"{PUBLIC_PREFIX}/docs", "admin": f"{ADMIN_PUBLIC_URL}/", "api": f"{PUBLIC_PREFIX}{settings.api_prefix}"}
 
 
 @app.get("/health/live", tags=["Health"])

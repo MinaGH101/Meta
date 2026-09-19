@@ -7,20 +7,21 @@ from PIL import Image
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("MEDIA_ROOT", "/tmp/meta-test-media")
 os.environ.setdefault("SEED_INITIAL_DATA", "true")
+os.environ.setdefault("ADMIN_PHONE", "09000000000")
 
 from fastapi.testclient import TestClient
 from app.main import app
 
 
 def admin_headers(client: TestClient) -> dict[str, str]:
-    login = client.post("/api/v1/auth/login", json={"email": "admin@example.com", "password": "ChangeMe123!"})
+    login = client.post("/api/v1/auth/login", json={"phone": "09000000000", "password": "ChangeMe123!"})
     assert login.status_code == 200, login.text
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
 def admin_session(client: TestClient) -> None:
     login = client.post(
-        "/admin/login",
+        "/api/admin/login",
         data={"username": "admin@example.com", "password": "ChangeMe123!"},
         follow_redirects=False,
     )
@@ -35,10 +36,10 @@ def jpeg_bytes() -> bytes:
 
 def test_admin_dashboard_structure_and_typable_forms():
     with TestClient(app) as client:
-        unauthenticated = client.get("/admin/", follow_redirects=True)
-        assert unauthenticated.url.path == "/admin/login"
+        unauthenticated = client.get("/api/admin/", follow_redirects=True)
+        assert unauthenticated.url.path == "/api/admin/login"
         admin_session(client)
-        page = client.get("/admin/management?area=projects&type=tarahi&new=1")
+        page = client.get("/api/admin/management?area=projects&type=tarahi&new=1")
         assert page.status_code == 200
         assert 'name="name"' in page.text
         assert "تصویر کاور پروژه" in page.text
@@ -54,7 +55,7 @@ def test_project_admin_create_upload_reference_edit_and_public_api():
         admin_session(client)
         project_slug = f"tarahi-{suffix}"
         created = client.post(
-            "/admin/management?area=projects&type=tarahi",
+            "/api/admin/management?area=projects&type=tarahi",
             data={
                 "action": "save_project",
                 "project_type": "tarahi",
@@ -73,7 +74,7 @@ def test_project_admin_create_upload_reference_edit_and_public_api():
         project = next(item for item in client.get("/api/v1/tarahi/projects").json() if item["slug"] == project_slug)
 
         section = client.post(
-            "/admin/management?area=projects&type=tarahi",
+            "/api/admin/management?area=projects&type=tarahi",
             data={
                 "action": "save_section",
                 "project_type": "tarahi",
@@ -94,7 +95,7 @@ def test_project_admin_create_upload_reference_edit_and_public_api():
         section_id = project["sections"][0]["id"]
 
         updated = client.post(
-            "/admin/management?area=projects&type=tarahi",
+            "/api/admin/management?area=projects&type=tarahi",
             data={
                 "action": "save_project",
                 "project_type": "tarahi",
@@ -122,7 +123,7 @@ def test_project_admin_create_upload_reference_edit_and_public_api():
         assert len(covers) == 1
         assert covers[0]["section_id"] is None
 
-        edit = client.get(f"/admin/management?area=projects&type=tarahi&edit={project['id']}")
+        edit = client.get(f"/api/admin/management?area=projects&type=tarahi&edit={project['id']}")
         assert edit.status_code == 200
         assert "Tarahi project" in edit.text
         assert "انتخاب تصویر کاور" in edit.text
@@ -168,7 +169,7 @@ def test_admin_users_messages_and_nezarat_table_forms():
     with TestClient(app) as client:
         admin_session(client)
         user = client.post(
-            "/admin/management?area=users",
+            "/api/admin/management?area=users",
             data={
                 "action": "save_user",
                 "full_name": "Panel User",
@@ -181,12 +182,12 @@ def test_admin_users_messages_and_nezarat_table_forms():
             follow_redirects=False,
         )
         assert user.status_code == 303
-        users_page = client.get("/admin/management?area=users")
+        users_page = client.get("/api/admin/management?area=users")
         assert f"panel-{suffix}@example.com" in users_page.text
 
         recipient_id = next(item["id"] for item in client.get("/api/v1/admin/users", headers=admin_headers(client)).json() if item["email"] == f"panel-{suffix}@example.com")
         message = client.post(
-            "/admin/management?area=messages&message_view=compose",
+            "/api/admin/management?area=messages&message_view=compose",
             data={
                 "action": "send_message",
                 "recipient_ids": recipient_id,
@@ -197,12 +198,12 @@ def test_admin_users_messages_and_nezarat_table_forms():
             follow_redirects=False,
         )
         assert message.status_code == 303
-        sent_page = client.get("/admin/management?area=messages&message_view=sent")
+        sent_page = client.get("/api/admin/management?area=messages&message_view=sent")
         assert "Panel message" in sent_page.text
         assert f"panel-{suffix}@example.com" in sent_page.text
 
         row = client.post(
-            "/admin/management?area=projects&type=nezarat",
+            "/api/admin/management?area=projects&type=nezarat",
             data={
                 "action": "save_table_row",
                 "project_type": "nezarat",
@@ -226,7 +227,7 @@ def test_persian_unicode_slugs_are_valid_in_public_responses():
     with TestClient(app) as client:
         admin_session(client)
         response = client.post(
-            "/admin/management?area=projects&type=nezarat",
+            "/api/admin/management?area=projects&type=nezarat",
             data={
                 "action": "save_relation",
                 "project_type": "nezarat",
@@ -266,7 +267,7 @@ def test_nezarat_excel_upload_is_rendered_exactly_from_api():
     with TestClient(app) as client:
         admin_session(client)
         response = client.post(
-            "/admin/management?area=projects&type=nezarat",
+            "/api/admin/management?area=projects&type=nezarat",
             data={"action": "upload_table_workbook", "project_type": "nezarat"},
             files={"excel_file": ("nezarat.xlsx", excel_bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
             follow_redirects=False,
@@ -281,7 +282,7 @@ def test_nezarat_excel_upload_is_rendered_exactly_from_api():
         assert payload["sheets"][0]["columns"] == ["منطقه", "متراژ", "مرحله"]
         assert payload["sheets"][0]["rows"][0] == ["لواسان", 1200, "اسکلت"]
 
-        panel = client.get("/admin/management?area=projects&type=nezarat")
+        panel = client.get("/api/admin/management?area=projects&type=nezarat")
         assert 'name="excel_file"' in panel.text
         assert "nezarat.xlsx" in panel.text
         assert "پروژه‌های جاری" in panel.text

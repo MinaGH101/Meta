@@ -11,7 +11,7 @@ const detailImage = "/images/11.jpg";
 const ACCENT = "#BD3039";
 
 const stats = [
-  { value: "۱ دهه", label: "سابقه فعالیت" },
+  { value: "۳ دهه", label: "سابقه فعالیت" },
   { value: "۱۰", label: "شرکت اقماری و تخصصی" },
   { value: "۱۵۰۰+", label: "پروژه کلان و خرد" },
   { value: "سراسری", label: "فعالیت در تمامی شهرهای ایران" },

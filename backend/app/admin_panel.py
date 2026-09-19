@@ -43,8 +43,8 @@ from .security import hash_password, verify_password
 from .storage import remove_media_file, save_image
 
 
-ADMIN_BASE_URL = "/admin"
-ADMIN_PUBLIC_URL = f"{settings.admin_public_prefix.rstrip('/')}{ADMIN_BASE_URL}"
+ADMIN_BASE_URL = settings.admin_internal_url.rstrip("/") or "/admin"
+ADMIN_PUBLIC_URL = settings.admin_public_url.rstrip("/") or "/api/admin"
 
 
 class AdminAuthentication(AuthenticationBackend):
@@ -62,10 +62,15 @@ class AdminAuthentication(AuthenticationBackend):
 
     async def login(self, request: Request) -> bool:
         form = await request.form()
-        email = str(form.get("username") or "").strip().lower()
+        identifier = str(form.get("username") or "").strip()
         password = str(form.get("password") or "")
         with SessionLocal() as db:
-            user = db.scalar(select(User).where(User.email == email))
+            user = db.scalar(
+                select(User).where(
+                    (User.phone == identifier)
+                    | (func.lower(User.email) == identifier.lower())
+                )
+            )
             if not user or not user.is_active or user.role != "admin":
                 return False
             if not verify_password(password, user.password_hash):
@@ -120,10 +125,9 @@ def configure_admin_template_urls(admin: Admin) -> None:
         request = context["request"]
         url = request.url_for(route_name, **path_params)
         path = url.path
-        if route_name.startswith("admin:") and settings.admin_public_prefix:
-            prefix = settings.admin_public_prefix.rstrip("/")
-            if not path.startswith(f"{prefix}/"):
-                path = f"{prefix}{path}"
+        if route_name.startswith("admin:"):
+            if path == ADMIN_BASE_URL or path.startswith(f"{ADMIN_BASE_URL}/"):
+                path = f"{ADMIN_PUBLIC_URL}{path[len(ADMIN_BASE_URL):]}"
         return path
 
     admin.templates.env.globals["url_for"] = public_url_for
@@ -661,7 +665,7 @@ def render_users(request: Request) -> HTMLResponse:
             except ValueError: pass
         users = list(db.scalars(select(User).order_by(User.created_at.desc())))
         rows = "".join(f"""<tr><td>{h(u.full_name)}</td><td>{h(u.email)}</td><td>{h(u.phone)}</td><td>{'مدیر' if u.role == 'admin' else 'کاربر'}</td><td>{'فعال' if u.is_active else 'غیرفعال'}</td><td><div class="actions"><a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=users&edit={u.id}">ویرایش</a><form method="post" onsubmit="return confirm('این کاربر حذف شود؟')"><input type="hidden" name="action" value="delete_user"><input type="hidden" name="user_id" value="{u.id}"><button class="danger">حذف</button></form></div></td></tr>""" for u in users) or '<tr><td colspan="6">کاربری ثبت نشده است.</td></tr>'
-        form = f"""<details class="compact" {'open' if edit_user else ''}><summary>{'ویرایش کاربر' if edit_user else 'ایجاد کاربر جدید'}</summary><div class="details-body"><form method="post" style="margin-top:13px"><input type="hidden" name="action" value="save_user">{f'<input type="hidden" name="user_id" value="{edit_user.id}">' if edit_user else ''}<div class="form-grid"><label>نام کامل<input name="full_name" value="{h(edit_user.full_name if edit_user else '')}" required></label><label>ایمیل<input type="email" name="email" value="{h(edit_user.email if edit_user else '')}" required></label><label>تلفن<input name="phone" value="{h(edit_user.phone if edit_user else '')}"></label><label>رمز عبور<input type="password" name="password" {'placeholder="برای حفظ رمز خالی بگذارید"' if edit_user else 'required'}></label><label>نقش<select name="role"><option value="user" {selected(edit_user.role if edit_user else 'user','user')}>کاربر</option><option value="admin" {selected(edit_user.role if edit_user else 'user','admin')}>مدیر</option></select></label><label class="inline-check"><input type="checkbox" name="is_active" {checked(edit_user.is_active if edit_user else True)}> فعال</label></div><div class="actions" style="margin-top:13px"><button>{'ذخیره' if edit_user else 'ایجاد کاربر'}</button>{f'<a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=users">لغو</a>' if edit_user else ''}</div></form></div></details>"""
+        form = f"""<details class="compact" {'open' if edit_user else ''}><summary>{'ویرایش کاربر' if edit_user else 'ایجاد کاربر جدید'}</summary><div class="details-body"><form method="post" style="margin-top:13px"><input type="hidden" name="action" value="save_user">{f'<input type="hidden" name="user_id" value="{edit_user.id}">' if edit_user else ''}<div class="form-grid"><label>نام کامل<input name="full_name" value="{h(edit_user.full_name if edit_user else '')}" required></label><label>ایمیل (اختیاری)<input type="email" name="email" value="{h(edit_user.email if edit_user else '')}"></label><label>تلفن<input name="phone" value="{h(edit_user.phone if edit_user else '')}" required></label><label>رمز عبور<input type="password" name="password" {'placeholder="برای حفظ رمز خالی بگذارید"' if edit_user else 'required'}></label><label>نقش<select name="role"><option value="user" {selected(edit_user.role if edit_user else 'user','user')}>کاربر</option><option value="admin" {selected(edit_user.role if edit_user else 'user','admin')}>مدیر</option></select></label><label class="inline-check"><input type="checkbox" name="is_active" {checked(edit_user.is_active if edit_user else True)}> فعال</label></div><div class="actions" style="margin-top:13px"><button>{'ذخیره' if edit_user else 'ایجاد کاربر'}</button>{f'<a class="button secondary" href="{ADMIN_PUBLIC_URL}/management?area=users">لغو</a>' if edit_user else ''}</div></form></div></details>"""
         body = f"""{notices(request)}<div class="page-head"><div><h1>مدیریت کاربران</h1><div class="muted">{len(users)} کاربر</div></div></div>{form}<section class="card"><div class="table-wrap"><table><thead><tr><th>نام</th><th>ایمیل</th><th>تلفن</th><th>نقش</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>{rows}</tbody></table></div></section>"""
         return layout("کاربران", body, "users")
 
@@ -872,14 +876,18 @@ async def handle_users_post(request: Request, form: FormData) -> RedirectRespons
                 raw_id = str(form.get("user_id") or "").strip()
                 user = db.get(User, UUID(raw_id)) if raw_id else User()
                 if not user: raise ValueError("User not found.")
-                email = str(form.get("email") or "").strip().lower()
+                email = str(form.get("email") or "").strip().lower() or None
+                phone = str(form.get("phone") or "").strip()
                 name = str(form.get("full_name") or "").strip()
                 password = str(form.get("password") or "")
-                if not name or not email: raise ValueError("Name and email are required.")
-                duplicate = db.scalar(select(User).where(User.email == email, User.id != user.id)) if raw_id else db.scalar(select(User).where(User.email == email))
+                if not name or not phone: raise ValueError("Name and phone number are required.")
+                duplicate = (
+                    db.scalar(select(User).where(User.email == email, User.id != user.id))
+                    if raw_id and email
+                    else db.scalar(select(User).where(User.email == email)) if email else None
+                )
                 if duplicate: raise ValueError("Email already exists.")
-                phone = str(form.get("phone") or "").strip() or None
-                phone_duplicate = db.scalar(select(User).where(User.phone == phone, User.id != user.id)) if raw_id and phone else db.scalar(select(User).where(User.phone == phone)) if phone else None
+                phone_duplicate = db.scalar(select(User).where(User.phone == phone, User.id != user.id)) if raw_id else db.scalar(select(User).where(User.phone == phone))
                 if phone_duplicate: raise ValueError("Phone number already exists.")
                 if not raw_id and len(password) < 8: raise ValueError("Password must be at least 8 characters.")
                 user.full_name=name; user.email=email; user.phone=phone; user.role=str(form.get("role") or "user"); user.is_active=bool_from_form(form,"is_active")

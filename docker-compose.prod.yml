@@ -11,7 +11,10 @@ x-backend-environment: &backend-environment
   ADMIN_NAME: ${ADMIN_NAME:-مدیر متا}
   SEED_INITIAL_DATA: ${SEED_INITIAL_DATA:-true}
   FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost}
-  ADMIN_PUBLIC_PREFIX: ${ADMIN_PUBLIC_PREFIX:-/api}
+  PUBLIC_PREFIX: /api
+  API_PREFIX: /v1
+  ADMIN_INTERNAL_URL: /admin
+  ADMIN_PUBLIC_URL: /api/admin
 
 services:
   postgres:
@@ -56,7 +59,7 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      test: ["CMD", "curl", "-fsS", "https://metaholding.ir/api/health/ready"]
       interval: 15s
       timeout: 5s
       retries: 10

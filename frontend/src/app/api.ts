@@ -1,5 +1,25 @@
-export const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1").replace(/\/$/, "");
-export const ADMIN_URL = (import.meta.env.VITE_ADMIN_URL || `${API_BASE.replace(/\/api\/v1$/, "")}/admin/`).replace(/([^:]\/)\/+/g, "$1");
+function normalizeApiBase(value: string): string {
+  return value
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api(?:\/api)+(?=\/v\d+(?:\/|$))/g, "/api");
+}
+
+function normalizeAdminUrl(value: string): string {
+  const normalized = value
+    .trim()
+    .replace(/\/api(?:\/api)+(?=\/admin(?:\/|$))/g, "/api")
+    .replace(/([^:]\/)\/+/g, "$1")
+    .replace(/\/+$/, "");
+  return `${normalized || "/api/admin"}/`;
+}
+
+export const API_BASE = normalizeApiBase(
+  import.meta.env.VITE_API_URL || "https://metaholding.ir/api/api/v1"
+);
+export const ADMIN_URL = normalizeAdminUrl(
+  import.meta.env.VITE_ADMIN_URL || "/api/admin/"
+);
 const ACCESS_KEY = "meta_access_token";
 const REFRESH_KEY = "meta_refresh_token";
 
