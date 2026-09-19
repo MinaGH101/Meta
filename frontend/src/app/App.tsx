@@ -8,13 +8,7 @@ import { AboutPage } from "./components/AboutPage";
 import { ContactPage } from "./components/ContactPage";
 import { ProfilePage } from "./components/ProfilePage";
 import { AuthPage } from "./components/AuthPage";
-import { useEffect } from "react";
-import { ADMIN_URL } from "./api";
-
-function BackendAdminRedirect() {
-  useEffect(() => { window.location.replace(ADMIN_URL); }, []);
-  return null;
-}
+import { AdminPage } from "./components/AdminPage";
 
 export default function App() {
   return (
@@ -29,7 +23,7 @@ export default function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/admin" element={<BackendAdminRedirect />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </BrowserRouter>
     </AppProviders>

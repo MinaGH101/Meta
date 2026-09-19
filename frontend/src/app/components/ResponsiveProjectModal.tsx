@@ -82,8 +82,8 @@ export function ResponsiveProjectModal({
             grid-template-rows: minmax(280px, 58dvh) minmax(0, 1fr);
             color: ${text}; background: ${bg};
           }
-          .responsive-project-modal-image { position: relative; min-height: 0; overflow: hidden; background: #0c0c0c; }
-          .responsive-project-modal-image img { width: 100%; height: 100%; object-fit: contain; }
+          .responsive-project-modal-image { position: relative; min-height: 0; overflow: hidden; display: grid; place-items: center; background: #0c0c0c; }
+          .responsive-project-modal-image img { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
           .responsive-project-modal-info { min-height: 0; overflow-y: auto; padding: 1rem 1.15rem 1.5rem; }
           .responsive-project-modal-info h3 { margin: 0; font-size: 1.18rem; font-weight: 800; }
           .responsive-project-modal-description { margin: .75rem 0 1rem; color: ${muted}; font-size: .76rem; line-height: 1.9; }

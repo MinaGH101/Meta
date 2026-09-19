@@ -331,6 +331,33 @@ def replace_tarahi_cover(db, project: TarahiProject, upload: UploadFile) -> None
     db.flush()
 
 
+def create_initial_tarahi_sections(db, project: TarahiProject, raw_sections: str) -> int:
+    names = [line.strip() for line in raw_sections.splitlines() if line.strip()]
+    if not names:
+        return 0
+    existing_slugs = {section.slug for section in project.sections}
+    created = 0
+    for index, name in enumerate(names):
+        slug = clean_slug(name, "section")[:80]
+        base_slug = slug
+        suffix = 2
+        while slug in existing_slugs:
+            slug = f"{base_slug[:74]}-{suffix}"
+            suffix += 1
+        existing_slugs.add(slug)
+        db.add(
+            TarahiProjectSection(
+                project_id=project.id,
+                name=name[:120],
+                slug=slug,
+                display_order=index,
+            )
+        )
+        created += 1
+    db.flush()
+    return created
+
+
 def add_named_images(db, project: Any, image_model: Any, raw_names: str, alt_text: str | None, caption: str | None, section_id: UUID | None = None) -> int:
     names = [clean_image_name(line) for line in raw_names.splitlines() if line.strip()]
     if not names:
@@ -429,8 +456,8 @@ html[data-theme="dark"]{--bg:#151718;--panel:#1d2022;--panel2:#17191b;--field:#1
 *{box-sizing:border-box}html{color-scheme:light}body{margin:0;background:radial-gradient(circle at 88% 0,rgba(189,48,57,.12),transparent 28%),var(--bg);color:var(--text);font:14px/1.75 Shabnam,Tahoma,sans-serif;direction:rtl}a{color:inherit}.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:18px;justify-content:space-between;padding:12px 22px;background:color-mix(in srgb,var(--panel) 90%,transparent);border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.brand-wrap{display:flex;align-items:center;gap:10px}.brand-mark{width:9px;height:32px;background:var(--red);border-radius:8px}.brand{font-weight:900;font-size:15px}.topnav,.tabs,.actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.topnav a,.tabs a,.icon-button{padding:8px 12px;text-decoration:none;border:1px solid transparent;border-radius:6px;color:var(--muted);background:transparent}.topnav a:hover,.topnav a.active,.tabs a:hover,.tabs a.active{background:var(--panel2);border-color:var(--line);color:var(--text)}.icon-button{cursor:pointer;font:inherit}.wrap{max-width:1540px;margin:auto;padding:22px}.tabs{margin-bottom:16px}.page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.page-head h1{font-size:22px;margin:0}.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}.card h1,.card h2,.card h3{margin-top:0}.card h2{font-size:16px}.muted{color:var(--muted)}.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,390px);gap:16px;align-items:start}.stack{min-width:0}.split{display:grid;grid-template-columns:1fr 1fr;gap:14px}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.full{grid-column:1/-1}.span2{grid-column:span 2}.form-section{border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:13px;margin-bottom:11px}.form-section-title{font-weight:900;margin-bottom:10px;color:var(--text)}
 label{display:grid;gap:5px;color:var(--muted);font-weight:700;font-size:12px}input,textarea,select{width:100%;min-height:40px;padding:9px 10px;background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:6px;font:inherit;pointer-events:auto;user-select:text;opacity:1}textarea{min-height:86px;resize:vertical}select[multiple]{min-height:150px}input:focus,textarea:focus,select:focus{outline:3px solid rgba(189,48,57,.13);border-color:var(--red)}input[type=checkbox]{width:17px;min-height:17px;accent-color:var(--red)}input[type=file]{padding:7px}.inline-check{display:flex;align-items:center;gap:7px;min-height:40px}
 button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:8px 13px;border:1px solid var(--red);border-radius:6px;background:var(--red);color:#fff;font-weight:850;cursor:pointer;text-decoration:none;font-family:inherit}button:hover,.button:hover{background:var(--red2)}button.secondary,.button.secondary{background:transparent;border-color:var(--line);color:var(--text)}button.danger,.button.danger{background:transparent;border-color:rgba(197,54,65,.55);color:var(--danger)}.notice{padding:11px 13px;border-radius:6px;margin-bottom:14px;border:1px solid}.notice.ok{border-color:rgba(35,122,81,.55);background:rgba(35,122,81,.1)}.notice.error{border-color:rgba(197,54,65,.55);background:rgba(197,54,65,.1)}
-.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:7px}table{width:100%;border-collapse:collapse;min-width:720px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}th{color:var(--muted);font-size:12px;background:var(--panel2)}.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:7px}.project{display:grid;grid-template-columns:94px 1fr auto;gap:12px;align-items:center;padding:11px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;margin-bottom:9px}.project h3{margin:0 0 4px;font-size:14px}.cover{width:94px;height:68px;object-fit:cover;border-radius:6px;background:#0d0f10}.placeholder{display:grid;place-items:center;color:var(--muted)}.meta{color:var(--muted);font-size:11px}.images{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:12px}.image-card{background:var(--panel2);border:1px solid var(--line);border-radius:7px;overflow:hidden}.image-card img{display:block;width:100%;height:120px;object-fit:cover}.image-body{padding:10px}.badge{display:inline-block;padding:2px 7px;border-radius:12px;background:var(--red);color:#fff;font-size:10px}.taxonomy{display:grid;gap:7px}.taxonomy-item{padding:9px;background:var(--panel2);border:1px solid var(--line);border-radius:6px}.taxonomy-fields{display:grid;grid-template-columns:1fr 1fr 75px auto;gap:8px}.message{padding:13px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;margin-bottom:9px}.message-head{display:flex;justify-content:space-between;gap:12px}.message-body{white-space:pre-wrap;margin-top:9px}.pill{display:inline-block;padding:2px 7px;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:10px}details.compact{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:16px;box-shadow:var(--shadow)}details.compact>summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:900;display:flex;align-items:center;justify-content:space-between}details.compact>summary::-webkit-details-marker{display:none}details.compact>summary:after{content:"＋";color:var(--red);font-size:18px}details.compact[open]>summary:after{content:"−"}.details-body{padding:0 16px 16px;border-top:1px solid var(--line)}.modal-shell{position:fixed;inset:0;z-index:50;background:rgba(5,7,9,.58);backdrop-filter:blur(7px);display:grid;place-items:center;padding:20px}.modal-card{width:min(980px,100%);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 26px 70px rgba(0,0,0,.35)}.modal-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--panel);border-bottom:1px solid var(--line)}.modal-body{padding:16px}
-.excel-current{display:grid;gap:12px;margin:14px 0;padding:13px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}.excel-sheets{display:flex;flex-wrap:wrap;gap:7px}.excel-upload-form{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.excel-upload-form button{justify-self:start}.excel-upload-form input[type=file]{padding:8px;background:var(--field)}.section-manager{grid-template-columns:repeat(auto-fit,minmax(310px,1fr));align-items:start}.section-manager .taxonomy-item{margin:0}.section-manager details.compact{margin:0;box-shadow:none}.modal-body{overflow-x:hidden}.upload-picker{display:flex;align-items:center;justify-content:center;min-height:42px;padding:8px 12px;border:1px dashed var(--red);border-radius:6px;color:var(--red);cursor:pointer;background:rgba(189,48,57,.05)}.upload-picker input{display:none}.upload-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;margin-top:10px}.upload-preview:empty{display:none}.upload-preview img,.section-image img{width:100%;height:92px;object-fit:cover;border-radius:5px;background:#111}.section-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px;margin-top:12px}.section-image{padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--field)}.section-image form{margin-top:6px}.section-image button{width:100%;min-height:32px;padding:5px}.cover-editor{display:grid;grid-template-columns:180px minmax(0,1fr);gap:13px;align-items:center}.cover-editor>img,.cover-placeholder{width:180px;height:118px;object-fit:cover;border-radius:6px;background:var(--field);border:1px solid var(--line)}.cover-placeholder{display:grid;place-items:center;color:var(--muted)}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:7px}table{width:100%;border-collapse:collapse;min-width:720px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}th{color:var(--muted);font-size:12px;background:var(--panel2)}.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:7px}.project{display:grid;grid-template-columns:94px 1fr auto;gap:12px;align-items:center;padding:11px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;margin-bottom:9px}.project h3{margin:0 0 4px;font-size:14px}.cover{width:94px;height:68px;object-fit:cover;border-radius:6px;background:#0d0f10}.placeholder{display:grid;place-items:center;color:var(--muted)}.meta{color:var(--muted);font-size:11px}.images{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:12px}.image-card{background:var(--panel2);border:1px solid var(--line);border-radius:7px;overflow:hidden}.image-card img{display:block;width:100%;height:140px;object-fit:contain;background:#0d0f10}.image-body{padding:10px}.badge{display:inline-block;padding:2px 7px;border-radius:12px;background:var(--red);color:#fff;font-size:10px}.taxonomy{display:grid;gap:7px}.taxonomy-item{padding:9px;background:var(--panel2);border:1px solid var(--line);border-radius:6px}.taxonomy-fields{display:grid;grid-template-columns:1fr 1fr 75px auto;gap:8px}.message{padding:13px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;margin-bottom:9px}.message-head{display:flex;justify-content:space-between;gap:12px}.message-body{white-space:pre-wrap;margin-top:9px}.pill{display:inline-block;padding:2px 7px;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:10px}details.compact{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:16px;box-shadow:var(--shadow)}details.compact>summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:900;display:flex;align-items:center;justify-content:space-between}details.compact>summary::-webkit-details-marker{display:none}details.compact>summary:after{content:"＋";color:var(--red);font-size:18px}details.compact[open]>summary:after{content:"−"}.details-body{padding:0 16px 16px;border-top:1px solid var(--line)}.modal-shell{position:fixed;inset:0;z-index:50;background:rgba(5,7,9,.58);backdrop-filter:blur(7px);display:grid;place-items:center;padding:20px}.modal-card{width:min(980px,100%);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 26px 70px rgba(0,0,0,.35)}.modal-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--panel);border-bottom:1px solid var(--line)}.modal-body{padding:16px}
+.excel-current{display:grid;gap:12px;margin:14px 0;padding:13px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}.excel-sheets{display:flex;flex-wrap:wrap;gap:7px}.excel-upload-form{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.excel-upload-form button{justify-self:start}.excel-upload-form input[type=file]{padding:8px;background:var(--field)}.section-manager{grid-template-columns:repeat(auto-fit,minmax(310px,1fr));align-items:start}.section-manager .taxonomy-item{margin:0}.section-manager details.compact{margin:0;box-shadow:none}.modal-body{overflow-x:hidden}.upload-picker{display:flex;align-items:center;justify-content:center;min-height:42px;padding:8px 12px;border:1px dashed var(--red);border-radius:6px;color:var(--red);cursor:pointer;background:rgba(189,48,57,.05)}.upload-picker input{display:none}.upload-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;margin-top:10px}.upload-preview:empty{display:none}.upload-preview img,.section-image img{width:100%;height:104px;object-fit:contain;border-radius:5px;background:#111}.section-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px;margin-top:12px}.section-image{padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--field)}.section-image form{margin-top:6px}.section-image button{width:100%;min-height:32px;padding:5px}.cover-editor{display:grid;grid-template-columns:180px minmax(0,1fr);gap:13px;align-items:center}.cover-editor>img,.cover-placeholder{width:180px;height:118px;object-fit:contain;border-radius:6px;background:var(--field);border:1px solid var(--line)}.cover-placeholder{display:grid;place-items:center;color:var(--muted)}
 @media(max-width:1050px){.layout,.split{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr}.project{grid-template-columns:82px 1fr}.project>.actions{grid-column:1/-1}.cover{width:82px;height:62px}}@media(max-width:680px){.wrap{padding:12px}.top{padding:10px 12px;align-items:flex-start}.topnav{overflow:auto;flex-wrap:nowrap}.form-grid,.taxonomy-fields,.cover-editor{grid-template-columns:1fr}.full,.span2{grid-column:auto}.project{grid-template-columns:1fr}.cover{width:100%;height:175px}.cover-editor>img,.cover-placeholder{width:100%;height:170px}.page-head{align-items:flex-start;flex-direction:column}.modal-shell{padding:0}.modal-card{height:100%;max-height:100%;border-radius:0}}
 """
 
@@ -555,7 +582,16 @@ def project_form(section: str, project: Any | None, relations: list[Any]) -> str
             if cover else
             '<div class="cover-placeholder">بدون تصویر کاور</div>'
         )
-        image_fields = f"""<div class="form-section">
+        initial_sections = "" if project else """<div class="form-section">
+          <div class="form-section-title">بخش‌های اولیه تصاویر</div>
+          <label>هر بخش را در یک خط بنویسید
+            <textarea name="initial_sections" placeholder="معماری&#10;سازه&#10;برق">معماری
+سازه
+برق</textarea>
+          </label>
+          <p class="muted">این بخش‌ها هم‌زمان با ایجاد پروژه ساخته می‌شوند و بعد از ذخیره، همین صفحه برای افزودن تصاویر باز می‌ماند.</p>
+        </div>"""
+        image_fields = f"""{initial_sections}<div class="form-section">
           <div class="form-section-title">تصویر کاور پروژه</div>
           <div class="cover-editor">
             {cover_preview}
@@ -708,7 +744,14 @@ async def handle_projects_post(request: Request, form: FormData, section: str) -
                 db.flush()
                 upload_count = 0
                 name_count = 0
+                section_count = 0
                 if section == "tarahi":
+                    if not raw_id:
+                        section_count = create_initial_tarahi_sections(
+                            db,
+                            project,
+                            str(form.get("initial_sections") or ""),
+                        )
                     cover_uploads = image_uploads(form, "cover_image")
                     if cover_uploads:
                         replace_tarahi_cover(db, project, cover_uploads[0])
@@ -727,7 +770,11 @@ async def handle_projects_post(request: Request, form: FormData, section: str) -
                         str(form.get("caption") or "").strip() or None,
                     )
                 db.commit()
-                return notice_url(area="projects", project_type=section, success=f"Project saved. {upload_count + name_count} image(s) added.", edit=project.id)
+                if section == "tarahi":
+                    success = f"پروژه ذخیره شد. {section_count} بخش و {upload_count} تصویر کاور افزوده شد."
+                else:
+                    success = f"Project saved. {upload_count + name_count} image(s) added."
+                return notice_url(area="projects", project_type=section, success=success, edit=project.id)
             if action == "delete_project":
                 project = load_project(db, section, UUID(str(form.get("project_id") or "")))
                 if not project: raise ValueError("Project not found.")

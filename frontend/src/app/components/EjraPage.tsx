@@ -199,7 +199,7 @@ export function EjraPage({ section }: Props) {
                   <ImageWithFallback
                     src={selectedProject.images[imgIndex]}
                     alt={selectedProject.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   {selectedProject.images.length > 1 && (
                     <>

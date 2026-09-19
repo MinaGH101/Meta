@@ -717,12 +717,16 @@ export function NezaratPage({ section }: Props) {
             min-height: 0;
             height: 100%;
             overflow: hidden;
+            display: grid;
+            place-items: center;
             background: #111111;
           }
 
           .album-lightbox-image > img {
-            width: 100%;
-            height: 100%;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
           }
 

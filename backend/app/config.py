@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 30
     refresh_token_days: int = 14
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
-    media_root: Path = Path("/app/media")
+    media_root: Path = Path("media")
     media_url: str = "/media"
     max_upload_mb: int = 20
     admin_email: str = "admin@example.com"

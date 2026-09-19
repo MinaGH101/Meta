@@ -178,7 +178,7 @@ export function TarahiPage({ section }: Props) {
 
                 <div className="relative overflow-hidden mb-4" style={{ borderRadius: 4, aspectRatio: "16/9", background: dark ? "#111" : "#ddd" }}>
                   {selectedImages.length > 0 && (
-                    <ImageWithFallback src={selectedImages[imageIndex]} alt={selectedProject.title} className="w-full h-full object-cover" />
+                    <ImageWithFallback src={selectedImages[imageIndex]} alt={selectedProject.title} className="w-full h-full object-contain" />
                   )}
                   {selectedImages.length > 1 && (
                     <>
