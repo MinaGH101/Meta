@@ -128,8 +128,10 @@ docker compose exec backend alembic upgrade head
 
 ```bash
 cp .env.production.example .env
-docker compose -f docker-compose.prod.yml up -d --build
+make deploy
 ```
+
+`make deploy` is the production deployment entry point. It starts PostgreSQL, creates and verifies a complete pre-deployment backup, and only then builds and replaces the application containers. Use this command instead of running `docker compose build` or `docker compose up --build` directly.
 
 Production includes migrations, Gunicorn/Uvicorn workers, Nginx, PostgreSQL and media volumes, health checks, restart policies, and an automated backup container.
 
@@ -137,12 +139,105 @@ Use HTTPS, strong secrets, restricted database networking, and off-server backup
 
 ## Backup and restore
 
+### Quick guide
+
+Run these commands from the project directory on the Linux website server:
+
 ```bash
-./scripts/backup.sh
-./scripts/restore.sh backups/meta_TIMESTAMP.dump backups/media_TIMESTAMP.tar.gz
+# Deploy safely: backup first, then build and restart the website
+make deploy
+
+# Create an extra backup manually
+make backup
+
+# View automatic backup activity
+docker compose -f docker-compose.prod.yml logs -f backup
+
+# List available backups
+ls -lah backups/daily backups/weekly
+
+# Restore one snapshot (the script asks you to type RESTORE)
+sh ./scripts/restore.sh backups/daily/TIMESTAMP
 ```
 
-Test restoration on a separate database before production deployment.
+Always use `make deploy` for production updates. Running `docker compose build` or `docker compose up --build` directly bypasses the required pre-deployment backup. Automatic backups run every 24 hours after the production stack starts.
+
+### Verify a backup
+
+Check that the automatic backup service is running and review its latest activity:
+
+```bash
+docker compose -f docker-compose.prod.yml ps backup
+docker compose -f docker-compose.prod.yml logs --tail=20 backup
+```
+
+Validate the checksums, PostgreSQL dump, media archive, and project archive without changing production data:
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
+  --entrypoint sh backup -eu -c '
+    cd /backups/daily/latest
+    sha256sum -c SHA256SUMS
+    pg_restore --list database.dump >/dev/null
+    tar -tzf media.tar.gz >/dev/null
+    tar -tzf project.tar.gz >/dev/null
+    echo "Latest backup is readable and valid."
+  '
+```
+
+Every checksum should report `OK`, followed by `Latest backup is readable and valid.` To create and inspect a fresh snapshot first, run:
+
+```bash
+make backup
+ls -lah backups/daily/
+```
+
+These checks prove that the backup files are complete and readable. Periodically perform a full restore on a separate test server as the final recovery test. Never test restoration against the live website because it replaces the production database and uploaded media.
+
+Every snapshot contains:
+
+- a PostgreSQL custom-format dump;
+- all uploaded media from the persistent Docker volume;
+- the project source and `.env` deployment configuration;
+- metadata and SHA-256 checksums verified before every restore.
+
+Snapshots are written to the host's `backups/` directory. Daily snapshots are kept for 14 days by default. Every Sunday (UTC), the current snapshot is also retained as a weekly snapshot for 8 weeks. Configure this in `.env` with `DAILY_RETENTION_DAYS`, `WEEKLY_RETENTION_WEEKS`, `BACKUP_WEEKLY_DAY` (`0` is Sunday), and `BACKUP_INTERVAL_SECONDS`.
+
+The production `backup` service runs automatically. Create an additional snapshot at any time with:
+
+```bash
+make backup
+```
+
+Snapshots appear under:
+
+```text
+backups/
+  daily/TIMESTAMP/
+  weekly/TIMESTAMP/
+```
+
+To restore the database and uploaded media on an existing installation:
+
+```bash
+sh ./scripts/restore.sh backups/daily/TIMESTAMP
+```
+
+The restore verifies every file, asks for explicit confirmation, stops application writers and the backup process, recreates the database, restores media, runs migrations, and restarts the website.
+
+For complete recovery after losing the website server, copy a snapshot to the replacement server and restore the source into an empty directory first:
+
+```bash
+sh ./scripts/restore-project.sh /path/to/snapshot /srv/meta-holding
+cd /srv/meta-holding
+docker compose -f docker-compose.prod.yml build backup backend frontend
+docker compose -f docker-compose.prod.yml up -d --wait postgres
+RESTORE_CONFIRM=yes sh ./scripts/restore.sh /path/to/snapshot
+```
+
+The project archive includes `.env`, so the backup directory contains secrets. Restrict filesystem and SSH access to it. When the local backup server is configured, copy the complete `daily/` and `weekly/` directories, including `SHA256SUMS`.
+
+Test restoration periodically on a separate server. A backup is not proven until a restore has succeeded.
 
 ## Validation
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env sh
 set -eu
+
+project_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$project_root"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-mkdir -p backups
-stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
-  -U "${POSTGRES_USER:-meta}" -d "${POSTGRES_DB:-meta}" --format=custom > "backups/meta_${stamp}.dump"
-docker compose -f "$COMPOSE_FILE" run --rm --no-deps \
-  -v "$(pwd)/backups:/host-backups" backend \
-  sh -c "tar -czf /host-backups/media_${stamp}.tar.gz -C /app/media ."
-echo "Database and media backups written to ./backups"
+
+docker compose -f "$COMPOSE_FILE" up -d --wait postgres
+docker compose -f "$COMPOSE_FILE" build backup
+docker compose -f "$COMPOSE_FILE" run --rm --no-deps backup once "${1:-manual}"

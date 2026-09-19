@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 from ..database import get_db
 from ..excel_tables import loads_sheets
@@ -14,6 +14,11 @@ from ..schemas import (
 )
 
 router = APIRouter(tags=["Public Website"])
+
+REGION_ALIASES = {
+    "karaj": ("karaj", "کرج", "سایر مناطق تهران"),
+    "shemshak": ("shemshak", "شمشک"),
+}
 
 
 @router.get("/tarahi/projects", response_model=list[TarahiProjectOut])
@@ -58,7 +63,8 @@ def nezarat_projects(
 ):
     query = select(NezaratProject).options(selectinload(NezaratProject.region), selectinload(NezaratProject.images)).order_by(NezaratProject.display_order, NezaratProject.created_at)
     if region:
-        query = query.join(NezaratProject.region).where(NezaratRegion.slug == region)
+        region_values = REGION_ALIASES.get(region, (region,))
+        query = query.join(NezaratProject.region).where(or_(NezaratRegion.slug.in_(region_values), NezaratRegion.name.in_(region_values)))
     if state:
         query = query.where(NezaratProject.state == state)
     return list(db.scalars(query).unique())

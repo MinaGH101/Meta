@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from "react";
 
-export type TehranMapAreaId = number | "karaj" | "lavasan";
+export type TehranMapAreaId = number | "karaj" | "lavasan" | "shemshak";
 
 interface TehranRegionsMapProps {
   activeAreaId: TehranMapAreaId | null;
@@ -185,13 +185,13 @@ export function TehranRegionsMap({ activeAreaId, dark, onAreaSelect }: TehranReg
           role="link"
           tabIndex={0}
           className={`tehran-city-link${activeAreaId === "karaj" ? " active" : ""}`}
-          aria-label="مشاهده پروژه‌های کرج"
+          aria-label="مشاهده پروژه‌های سایر مناطق تهران"
           onClick={() => selectArea("karaj")}
           onKeyDown={event => handleAreaKeyDown(event, "karaj")}
         >
-          <title>پروژه‌های کرج</title>
-          <rect x="24" y="-42" width="96" height="38" rx="4" className="tehran-city-shape" />
-          <text x="72" y="-23" className="tehran-city-label">کرج</text>
+          <title>پروژه‌های سایر مناطق تهران</title>
+          <rect x="8" y="-42" width="176" height="38" rx="4" className="tehran-city-shape" />
+          <text x="96" y="-23" className="tehran-city-label">سایر مناطق تهران</text>
         </g>
 
         <g
@@ -205,6 +205,19 @@ export function TehranRegionsMap({ activeAreaId, dark, onAreaSelect }: TehranReg
           <title>پروژه‌های لواسان</title>
           <rect x="634" y="-42" width="108" height="38" rx="4" className="tehran-city-shape" />
           <text x="688" y="-23" className="tehran-city-label">لواسان</text>
+        </g>
+
+        <g
+          role="link"
+          tabIndex={0}
+          className={`tehran-city-link${activeAreaId === "shemshak" ? " active" : ""}`}
+          aria-label="مشاهده پروژه‌های شمشک"
+          onClick={() => selectArea("shemshak")}
+          onKeyDown={event => handleAreaKeyDown(event, "shemshak")}
+        >
+          <title>پروژه‌های شمشک</title>
+          <rect x="584" y="-62" width="94" height="34" rx="4" className="tehran-city-shape" />
+          <text x="631" y="-45" className="tehran-city-label">شمشک</text>
         </g>
 
         {REGION_PATHS.map(region => {

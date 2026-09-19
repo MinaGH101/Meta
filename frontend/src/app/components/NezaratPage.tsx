@@ -60,8 +60,9 @@ const toPersianNumber = (value: number | string) =>
   String(value).replace(/\d/g, digit => PERSIAN_DIGITS[Number(digit)]);
 
 const getAreaName = (areaId: TehranMapAreaId) => {
-  if (areaId === "karaj") return "کرج";
+  if (areaId === "karaj") return "سایر مناطق تهران";
   if (areaId === "lavasan") return "لواسان";
+  if (areaId === "shemshak") return "شمشک";
   return `منطقه ${toPersianNumber(areaId)}`;
 };
 

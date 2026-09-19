@@ -26,10 +26,17 @@ def seed_database(db: Session) -> None:
         admin.phone = admin_phone
 
     if settings.seed_initial_data:
-        region_items = [(str(number), f"منطقه {number}") for number in range(1, 23)] + [("lavasan", "لواسان"), ("karaj", "کرج")]
+        region_items = [(str(number), f"منطقه {number}") for number in range(1, 23)] + [
+            ("lavasan", "لواسان"),
+            ("shemshak", "شمشک"),
+            ("karaj", "سایر مناطق تهران"),
+        ]
         for order, (slug, name) in enumerate(region_items):
-            if not db.scalar(select(NezaratRegion).where(NezaratRegion.slug == slug)):
+            region = db.scalar(select(NezaratRegion).where(NezaratRegion.slug == slug))
+            if not region:
                 db.add(NezaratRegion(slug=slug, name=name, display_order=order))
+            else:
+                region.name = name
 
         defaults = {
             "landing": ("هلدینگ متا", {"subtitle": "META HOLDING"}),

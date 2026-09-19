@@ -1,4 +1,4 @@
-.PHONY: dev down logs test validate backup prod
+.PHONY: dev down logs test validate backup deploy prod
 
 dev:
 	docker compose up --build
@@ -14,10 +14,12 @@ validate:
 	docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
 
 test:
-	./scripts/test.sh
+	sh ./scripts/test.sh
 
 backup:
-	./scripts/backup.sh
+	sh ./scripts/backup.sh
 
-prod:
-	docker compose -f docker-compose.prod.yml up -d --build
+deploy:
+	sh ./scripts/deploy.sh
+
+prod: deploy

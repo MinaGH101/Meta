@@ -88,26 +88,21 @@ services:
       - /var/run
 
   backup:
-    image: postgres:16-alpine
+    build:
+      context: ./backup
     environment:
       PGHOST: postgres
       PGPORT: 5432
       PGDATABASE: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
       PGUSER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      DAILY_RETENTION_DAYS: ${DAILY_RETENTION_DAYS:-14}
+      WEEKLY_RETENTION_WEEKS: ${WEEKLY_RETENTION_WEEKS:-8}
+      BACKUP_WEEKLY_DAY: ${BACKUP_WEEKLY_DAY:-0}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
-    command: >-
-      sh -c 'mkdir -p /backups;
-      while true; do
-        stamp=$$(date -u +%Y%m%dT%H%M%SZ);
-        pg_dump --format=custom --file=/backups/meta_$${stamp}.dump;
-        tar -czf /backups/media_$${stamp}.tar.gz -C /media .;
-        find /backups -type f \( -name "*.dump" -o -name "media_*.tar.gz" \) -mtime +$${BACKUP_RETENTION_DAYS} -delete;
-        sleep $${BACKUP_INTERVAL_SECONDS};
-      done'
     volumes:
-      - database_backups:/backups
+      - ./backups:/backups
+      - ./:/project:ro
       - media_data:/media:ro
     depends_on:
       postgres:
@@ -117,4 +112,3 @@ services:
 volumes:
   postgres_data:
   media_data:
-  database_backups:
