@@ -110,7 +110,6 @@ export function NezaratPage({ section }: Props) {
     let active = true;
 
     const loadTable = () => {
-      setExcelLoading(true);
       apiFetch<PageContent>("/page-content/nezarat", { cache: "no-store" })
         .then(pageContent => {
           if (!active) return;
@@ -129,23 +128,35 @@ export function NezaratPage({ section }: Props) {
               columns: sheet.columns,
               rows: sheet.rows,
             }));
-          setProjectSheets(nextSheets);
-          setActiveSheetIndex(index => Math.min(index, Math.max(nextSheets.length - 1, 0)));
+          setProjectSheets(current =>
+            JSON.stringify(current) === JSON.stringify(nextSheets)
+              ? current
+              : nextSheets,
+          );
+          setActiveSheetIndex(index =>
+            Math.min(index, Math.max(nextSheets.length - 1, 0)),
+          );
           setExcelError(null);
         })
         .catch(error => {
-          if (active) setExcelError(error instanceof Error ? error.message : "خطا در دریافت جدول پروژه‌ها");
+          if (active) {
+            setExcelError(
+              error instanceof Error
+                ? error.message
+                : "خطا در دریافت جدول پروژه‌ها",
+            );
+          }
         })
-        .finally(() => { if (active) setExcelLoading(false); });
+        .finally(() => {
+          if (active) {
+            setExcelLoading(false);
+          }
+        });
     };
 
     loadTable();
-    const timer = window.setInterval(loadTable, 10000);
-    window.addEventListener("focus", loadTable);
     return () => {
       active = false;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", loadTable);
     };
   }, []);
 
@@ -181,9 +192,7 @@ export function NezaratPage({ section }: Props) {
     };
 
     loadAlbum();
-    const timer = window.setInterval(loadAlbum, 10000);
-    window.addEventListener("focus", loadAlbum);
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", loadAlbum); };
+    return () => { active = false; };
   }, [activeAreaId]);
 
   useEffect(() => {
