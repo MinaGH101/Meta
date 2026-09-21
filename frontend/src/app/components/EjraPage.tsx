@@ -23,27 +23,6 @@ interface Project {
   thumb: string;
 }
 
-const SECTION_CONTENT: Record<
-  Props["section"],
-  { title: string; description: string }
-> = {
-  tarrahi: {
-    title: "پروژه‌های طراحی",
-    description:
-      "در فرآیند طراحی، هر پروژه از شناخت دقیق نیازهای کارفرما، ویژگی‌های زمین، شرایط اقلیمی و ضوابط اجرایی آغاز می‌شود. هدف ما ایجاد فضایی است که علاوه بر کیفیت بصری، از نظر عملکرد، آسایش، دوام و امکان اجرا نیز پاسخ‌گو باشد. در این مسیر، پلان، نما، طراحی داخلی، محوطه و جزئیات فنی به‌صورت یکپارچه بررسی می‌شوند تا نتیجه نهایی هویتی منسجم و متناسب با بستر پروژه داشته باشد. مجموعه زیر بخشی از پروژه‌های طراحی‌شده در مقیاس‌ها و کاربری‌های مختلف را نمایش می‌دهد.",
-  },
-  nezarat: {
-    title: "پروژه‌های نظارت",
-    description:
-      "نظارت مؤثر، حلقه اتصال میان طرح و اجرای صحیح پروژه است. خدمات نظارت ما با تمرکز بر کنترل کیفیت، انطباق عملیات اجرایی با نقشه‌ها و مشخصات فنی، بررسی مصالح، هماهنگی عوامل اجرایی و پایش مستمر پیشرفت پروژه انجام می‌شود. هدف این فرآیند، کاهش خطاهای اجرایی، جلوگیری از دوباره‌کاری و حفظ کیفیت نهایی بنا در تمام مراحل ساخت است. مجموعه زیر بخشی از پروژه‌هایی را نشان می‌دهد که در مراحل مختلف تحت نظارت تخصصی قرار گرفته‌اند.",
-  },
-  ejra: {
-    title: "پروژه‌های اجرا",
-    description:
-      "اجرای پروژه، مرحله تبدیل ایده و نقشه به یک فضای واقعی، ایمن و ماندگار است. رویکرد ما در اجرا بر برنامه‌ریزی دقیق، مدیریت هماهنگ نیروها و پیمانکاران، کنترل کیفیت مصالح، رعایت جزئیات فنی و پایش زمان و هزینه استوار است. تمامی مراحل، از تجهیز کارگاه و عملیات سازه تا تکمیل نما، محوطه و فضاهای داخلی، با هدف دستیابی به کیفیتی یکپارچه و قابل اتکا مدیریت می‌شوند. گالری زیر نمونه‌ای از پروژه‌های اجرایی مجموعه در کاربری‌ها و مقیاس‌های مختلف است.",
-  },
-};
-
 const ACCENT = "#BD3039";
 
 export function EjraPage({ section }: Props) {
@@ -55,6 +34,7 @@ export function EjraPage({ section }: Props) {
   const [imgIndex, setImgIndex] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
   const [page, setPage] = useState<PageContent | null>(null);
+  const [pageLoaded, setPageLoaded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +52,10 @@ export function EjraPage({ section }: Props) {
     };
 
     loadProjects();
-    apiFetch<PageContent>("/page-content/ejra").then(setPage).catch(() => null);
+    apiFetch<PageContent>("/page-content/ejra")
+      .then(setPage)
+      .catch(() => null)
+      .finally(() => { if (active) setPageLoaded(true); });
     const timer = window.setInterval(loadProjects, 10000);
     window.addEventListener("focus", loadProjects);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", loadProjects); };
@@ -82,11 +65,12 @@ export function EjraPage({ section }: Props) {
     const imageCount = selectedProject?.images.length || mobilePopupProject?.images.length || 1;
     setImgIndex(index => Math.min(index, Math.max(imageCount - 1, 0)));
   }, [selectedProject?.images.length, mobilePopupProject?.images.length]);
-  const defaultSectionContent = SECTION_CONTENT[section];
-  const sectionContent = {
-    title: page?.title || defaultSectionContent.title,
-    description: String(page?.content.intro || defaultSectionContent.description),
-  };
+  const sectionContent = pageLoaded
+    ? {
+        title: page?.title || "پروژه‌های اجرا",
+        description: String(page?.content.intro || ""),
+      }
+    : null;
   const masonryItems = useMemo(
     () =>
       projects.map((project, index) => ({
@@ -440,21 +424,23 @@ export function EjraPage({ section }: Props) {
                   margin: 0,
                 }}
               >
-                {sectionContent.title}
+                {sectionContent?.title || "\u00a0"}
               </h2>
             </div>
 
-            <p
-              className="mb-6"
-              style={{
-                color: muted,
-                fontSize: "0.8rem",
-                lineHeight: 2,
-                margin: "0 0 1.5rem 0",
-              }}
-            >
-              {sectionContent.description}
-            </p>
+            {sectionContent?.description && (
+              <p
+                className="mb-6"
+                style={{
+                  color: muted,
+                  fontSize: "0.8rem",
+                  lineHeight: 2,
+                  margin: "0 0 1.5rem 0",
+                }}
+              >
+                {sectionContent.description}
+              </p>
+            )}
 
             {projects.length > 0 ? (
               <div

@@ -37,6 +37,7 @@ export function TarahiPage({ section }: Props) {
   const { dark } = useDark();
   const [projects, setProjects] = useState<Project[]>([]);
   const [page, setPage] = useState<PageContent | null>(null);
+  const [pageLoaded, setPageLoaded] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [mobileProject, setMobileProject] = useState<Project | null>(null);
   const [activeSectionId, setActiveSectionId] = useState("");
@@ -57,7 +58,10 @@ export function TarahiPage({ section }: Props) {
         .catch(() => { if (active) setProjects([]); });
     };
     loadProjects();
-    apiFetch<PageContent>("/page-content/tarrahi").then(setPage).catch(() => null);
+    apiFetch<PageContent>("/page-content/tarrahi")
+      .then(setPage)
+      .catch(() => null)
+      .finally(() => { if (active) setPageLoaded(true); });
     const timer = window.setInterval(loadProjects, 10000);
     window.addEventListener("focus", loadProjects);
     return () => {
@@ -102,7 +106,7 @@ export function TarahiPage({ section }: Props) {
   const text = dark ? "#ffffff" : "#111111";
   const muted = dark ? "rgba(255,255,255,0.56)" : "rgba(0,0,0,0.56)";
   const border = dark ? "rgba(255,255,255,0.11)" : "rgba(0,0,0,0.11)";
-  const intro = String(page?.content.intro || "مجموعه‌ای از پروژه‌های طراحی هلدینگ متا؛ برای مشاهده نقشه‌های طراحی، سازه و برق هر پروژه روی تصویر آن کلیک کنید.");
+  const intro = pageLoaded ? String(page?.content.intro || "") : "";
 
   const openProject = (project: Project) => {
     const firstSectionId = project.sections[0]?.id || "";
@@ -233,10 +237,12 @@ export function TarahiPage({ section }: Props) {
             <div className="flex items-center gap-3 mb-4">
               <span style={{ width: 3, height: 30, background: ACCENT, borderRadius: 2 }} />
               <h1 style={{ fontSize: "clamp(1.4rem, 2.5vw, 1.9rem)", fontWeight: 700, margin: 0 }}>
-                {page?.title || "پروژه‌های طراحی"}
+                {pageLoaded ? page?.title || "پروژه‌های طراحی" : "\u00a0"}
               </h1>
             </div>
-            <p style={{ color: muted, fontSize: ".8rem", lineHeight: 2, margin: "0 0 1.5rem" }}>{intro}</p>
+            {intro && (
+              <p style={{ color: muted, fontSize: ".8rem", lineHeight: 2, margin: "0 0 1.5rem" }}>{intro}</p>
+            )}
             {masonryItems.length > 0 ? (
               <div className="tarahi-masonry" style={{ marginTop: ".25rem" }}>
                 <Masonry

@@ -82,6 +82,7 @@ export function NezaratPage({ section }: Props) {
 
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   const [page, setPage] = useState<PageContent | null>(null);
+  const [pageLoaded, setPageLoaded] = useState(false);
   const [projectSheets, setProjectSheets] = useState<ProjectSheet[]>([]);
   const [excelLoading, setExcelLoading] = useState(true);
   const [excelError, setExcelError] = useState<string | null>(null);
@@ -110,11 +111,16 @@ export function NezaratPage({ section }: Props) {
 
     const loadTable = () => {
       setExcelLoading(true);
-      Promise.all([
-        apiFetch<NezaratWorkbook>("/nezarat/table-workbook", { cache: "no-store" }),
-        apiFetch<PageContent>("/page-content/nezarat", { cache: "no-store" }).catch(() => null),
-      ])
-        .then(([workbook, pageContent]) => {
+      apiFetch<PageContent>("/page-content/nezarat", { cache: "no-store" })
+        .then(pageContent => {
+          if (!active) return;
+          setPage(pageContent);
+        })
+        .catch(() => null)
+        .finally(() => { if (active) setPageLoaded(true); });
+
+      apiFetch<NezaratWorkbook>("/nezarat/table-workbook", { cache: "no-store" })
+        .then(workbook => {
           if (!active) return;
           const nextSheets = (workbook.sheets || [])
             .filter(sheet => sheet.name.trim().toLocaleLowerCase() !== "table")
@@ -125,7 +131,6 @@ export function NezaratPage({ section }: Props) {
             }));
           setProjectSheets(nextSheets);
           setActiveSheetIndex(index => Math.min(index, Math.max(nextSheets.length - 1, 0)));
-          setPage(pageContent);
           setExcelError(null);
         })
         .catch(error => {
@@ -1289,11 +1294,13 @@ background: transparent;
               <div>
                 <p className="section-kicker">{SECTION_LABELS[section]} پروژه‌ها</p>
                 <h1 id="projects-table-title" className="section-title">
-                  {page?.title || "جدول پروژه‌های نظارت"}
+                  {pageLoaded ? page?.title || "جدول پروژه‌های نظارت" : "\u00a0"}
                 </h1>
-                <p className="section-description">
-                  {String(page?.content.intro || "اطلاعات این جدول مستقیماً از فایل Excel بارگذاری‌شده در پنل مدیریت خوانده می‌شود. هر شیت فایل در یک تب جدا نمایش داده می‌شود.")}
-                </p>
+                {pageLoaded && page?.content.intro && (
+                  <p className="section-description">
+                    {String(page.content.intro)}
+                  </p>
+                )}
               </div>
 
               <TableProperties size={30} color={ACCENT} strokeWidth={1.4} />
