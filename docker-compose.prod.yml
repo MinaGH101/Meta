@@ -77,7 +77,9 @@ services:
         VITE_API_URL: /api/v1
         VITE_ADMIN_URL: /api/admin/
     ports:
-      - "${HTTP_PORT:-80}:80"
+      # Host Nginx owns public ports 80/443 and proxies to this loopback-only
+      # listener. Keeping the container off port 80 prevents a bind conflict.
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy

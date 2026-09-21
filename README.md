@@ -135,6 +135,8 @@ make deploy
 
 Production includes migrations, Gunicorn/Uvicorn workers, Nginx, PostgreSQL and media volumes, health checks, restart policies, and an automated backup container.
 
+If the server uses a host-level Nginx for TLS, it owns public ports 80 and 443. The frontend container is intentionally published only on `127.0.0.1:8080` (`FRONTEND_PORT`), so configure the host virtual host with `proxy_pass http://127.0.0.1:8080;`. Do not publish the frontend container on host port 80, as that prevents it from starting and results in a 502 response.
+
 Use HTTPS, strong secrets, restricted database networking, and off-server backup copies in production.
 
 ## Backup and restore
