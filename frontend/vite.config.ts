@@ -32,8 +32,8 @@ export default defineConfig({
     host: '0.0.0.0',
 
     allowedHosts: [
-      'metaholding.ir',
-      'www.metaholding.ir',
+      'metaholding.co',
+      'www.metaholding.co',
     ],
 
     watch: {

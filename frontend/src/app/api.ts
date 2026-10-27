@@ -15,7 +15,7 @@ function normalizeAdminUrl(value: string): string {
 }
 
 export const API_BASE = normalizeApiBase(
-  import.meta.env.VITE_API_URL || "https://metaholding.ir/api/api/v1"
+  import.meta.env.VITE_API_URL || "https://metaholding.co/api/api/v1"
 );
 export const ADMIN_URL = normalizeAdminUrl(
   import.meta.env.VITE_ADMIN_URL || "/api/admin/"

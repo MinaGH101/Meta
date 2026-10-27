@@ -67,8 +67,8 @@ services:
     container_name: meta-frontend
     command: npm run dev -- --host 0.0.0.0
     environment:
-      VITE_API_URL: ${VITE_API_URL:-https://metaholding.ir/api/api/v1}
-      VITE_ADMIN_URL: ${VITE_ADMIN_URL:-https://metaholding.ir/api/api/admin/}
+      VITE_API_URL: ${VITE_API_URL:-https://metaholding.co/api/api/v1}
+      VITE_ADMIN_URL: ${VITE_ADMIN_URL:-https://metaholding.co/api/api/admin/}
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     ports:
